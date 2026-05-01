@@ -37,6 +37,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     algorithmSelect->addItem("K-Means Segmentation");
     algorithmSelect->addItem("Mean Shift Segmentation");
     algorithmSelect->addItem("Region Growing");
+    algorithmSelect->addItem("Agglomerative Clustering");
 
     // 2. Arrange UI with Layouts
     QWidget *centralWidget = new QWidget(this);
@@ -104,9 +105,13 @@ void MainWindow::processImage() {
     else if (selectedAlgorithm == "Mean Shift Segmentation") {
         processedMat = Segmentation::applyMeanShift(currentImage);
     }
-    else if (selectedAlgorithm == "Region Growing") {  // <-- ADD THESE 3 LINES
+    else if (selectedAlgorithm == "Region Growing") {  
         processedMat = Segmentation::applyRegionGrowing(currentImage);
     }
+    else if (selectedAlgorithm == "Agglomerative Clustering") { 
+        processedMat = Segmentation::applyAgglomerative(currentImage);
+    }
+    
 
     // Display the result
     if (!processedMat.empty()) {

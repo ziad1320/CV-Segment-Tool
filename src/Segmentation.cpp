@@ -125,6 +125,91 @@ cv::Mat Segmentation::applyRegionGrowing(const cv::Mat& inputImage) {
 }
 
 cv::Mat Segmentation::applyAgglomerative(const cv::Mat& inputImage) {
-    qDebug() << "Agglomerative Clustering not yet implemented.";
-    return inputImage.clone(); 
+    if (inputImage.empty()) return inputImage;
+
+    // 1. Downsample heavily. 
+    // Doing this on a full image requires a supercomputer. We downscale to 20x20.
+    int grid = 20;
+    cv::Mat smallImg;
+    cv::resize(inputImage, smallImg, cv::Size(grid, grid));
+
+    // 2. Setup initial clusters (every pixel is its own cluster to start)
+    int N = grid * grid;
+    std::vector<int> labels(N);
+    std::vector<cv::Vec3f> centers(N);
+    std::vector<int> counts(N, 1);
+
+    for (int i = 0; i < N; ++i) {
+        labels[i] = i; // Everyone is their own boss initially
+        int r = i / grid;
+        int c = i % grid;
+        cv::Vec3b pix = smallImg.at<cv::Vec3b>(r, c);
+        centers[i] = cv::Vec3f(pix[0], pix[1], pix[2]);
+    }
+
+    // 3. Loop and Merge until we reach K dominant clusters
+    int K = 4; // We want 4 final colors
+    int currentClusters = N;
+
+    while (currentClusters > K) {
+        float minDistance = FLT_MAX;
+        int bestA = -1;
+        int bestB = -1;
+
+        // Find the two closest clusters in color space
+        for (int i = 0; i < N; ++i) {
+            if (labels[i] != i) continue; // Only look at active cluster heads
+            for (int j = i + 1; j < N; ++j) {
+                if (labels[j] != j) continue;
+                
+                // Calculate Euclidean distance between colors
+                float dB = centers[i][0] - centers[j][0];
+                float dG = centers[i][1] - centers[j][1];
+                float dR = centers[i][2] - centers[j][2];
+                float dist = (dB*dB + dG*dG + dR*dR);
+
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    bestA = i;
+                    bestB = j;
+                }
+            }
+        }
+
+        // Merge Cluster B into Cluster A
+        labels[bestB] = bestA;
+        currentClusters--;
+
+        // Update all blocks that used to point to B, to now point to A
+        for (int i = 0; i < N; ++i) {
+            if (labels[i] == bestB) {
+                labels[i] = bestA;
+            }
+        }
+
+        // Recalculate the new average color of the merged cluster A
+        float newB = (centers[bestA][0] * counts[bestA] + centers[bestB][0] * counts[bestB]) / (counts[bestA] + counts[bestB]);
+        float newG = (centers[bestA][1] * counts[bestA] + centers[bestB][1] * counts[bestB]) / (counts[bestA] + counts[bestB]);
+        float newR = (centers[bestA][2] * counts[bestA] + centers[bestB][2] * counts[bestB]) / (counts[bestA] + counts[bestB]);
+        
+        centers[bestA] = cv::Vec3f(newB, newG, newR);
+        counts[bestA] += counts[bestB];
+    }
+
+    // 4. Paint the small 20x20 grid with the final 4 clustered colors
+    cv::Mat clusteredSmall = cv::Mat::zeros(grid, grid, CV_8UC3);
+    for (int i = 0; i < N; ++i) {
+        int head = labels[i];
+        int r = i / grid;
+        int c = i % grid;
+        clusteredSmall.at<cv::Vec3b>(r, c) = cv::Vec3b((uchar)centers[head][0], (uchar)centers[head][1], (uchar)centers[head][2]);
+    }
+
+    // 5. Upscale back to original size. 
+    // We use INTER_NEAREST so it doesn't blur the edges of our mathematical clusters.
+    cv::Mat result;
+    cv::resize(clusteredSmall, result, inputImage.size(), 0, 0, cv::INTER_NEAREST);
+
+    qDebug() << "Agglomerative Clustering applied. Reduced" << N << "starting points down to" << currentClusters << "clusters.";
+    return result;
 }
