@@ -1,0 +1,58 @@
+# ==========================================
+# C++ / CMake Build Files
+# ==========================================
+# Ignore the entire build folder (crucial!)
+build/
+out/
+bin/
+
+# Ignore loose CMake cache files
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+compile_commands.json
+
+# ==========================================
+# Qt Auto-Generated Files
+# ==========================================
+# Qt creates tons of hidden C++ files (MOC, UIC) to make the UI work.
+# These change on every machine and should not be tracked.
+*_autogen/
+autogen/
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+
+# ==========================================
+# Executables and Libraries
+# ==========================================
+*.exe
+*.dll
+*.lib
+*.a
+*.so
+*.dylib
+*.pdb
+
+# ==========================================
+# VS Code Workspace Settings
+# ==========================================
+# Ignores your personal IDE settings so you don't overwrite your teammates'
+.vscode/
+
+# ==========================================
+# OS Generated Files
+# ==========================================
+.DS_Store
+Thumbs.db
+
+# ==========================================
+# Optional: Ignore Test Images
+# ==========================================
+# If you don't want massive image files bloating your git history:
+*.png
+*.jpg
+*.jpeg
+# If you DO want to track one specific sample image, uncomment the line below:
+# !test_image.png
