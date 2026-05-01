@@ -32,10 +32,11 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     algorithmSelect->addItem("Optimal Thresholding");
     algorithmSelect->addItem("Local Thresholding");
     algorithmSelect->addItem("Spectral Thresholding");
-    // --- NEW SEGMENTATION ITEMS ---
+    // --- SEGMENTATION ITEMS ---
     algorithmSelect->insertSeparator(algorithmSelect->count()); // Visual line in dropdown
     algorithmSelect->addItem("K-Means Segmentation");
     algorithmSelect->addItem("Mean Shift Segmentation");
+    algorithmSelect->addItem("Region Growing");
 
     // 2. Arrange UI with Layouts
     QWidget *centralWidget = new QWidget(this);
@@ -102,6 +103,9 @@ void MainWindow::processImage() {
     }
     else if (selectedAlgorithm == "Mean Shift Segmentation") {
         processedMat = Segmentation::applyMeanShift(currentImage);
+    }
+    else if (selectedAlgorithm == "Region Growing") {  // <-- ADD THESE 3 LINES
+        processedMat = Segmentation::applyRegionGrowing(currentImage);
     }
 
     // Display the result
