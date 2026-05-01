@@ -1,9 +1,11 @@
 #include "../include/MainWindow.h"
+#include "../include/Thresholding.h" // Includes all our math algorithms
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QWidget>
+#include <QDebug>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     setWindowTitle("CVSegmenter - Project 4");
@@ -23,9 +25,12 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     loadButton = new QPushButton("Load Image", this);
     processButton = new QPushButton("Apply Algorithm", this);
     
+    // The unified algorithm dropdown
     algorithmSelect = new QComboBox(this);
     algorithmSelect->addItem("Otsu Thresholding");
-    // We will add the other 7 algorithms here later
+    algorithmSelect->addItem("Optimal Thresholding");
+    algorithmSelect->addItem("Local Thresholding");
+    algorithmSelect->addItem("Spectral Thresholding");
 
     // 2. Arrange UI with Layouts
     QWidget *centralWidget = new QWidget(this);
@@ -52,7 +57,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 void MainWindow::openImage() {
     QString fileName = QFileDialog::getOpenFileName(this, "Open Image", "", "Images (*.png *.xpm *.jpg *.bmp)");
     if (!fileName.isEmpty()) {
-        qDebug() << "Attempting to load file from path:" << fileName;
+        // Using toLocal8Bit to safely handle Windows paths
         currentImage = cv::imread(fileName.toLocal8Bit().constData());
         if (currentImage.empty()) {
             QMessageBox::warning(this, "Error", "Failed to load image!");
@@ -70,40 +75,27 @@ void MainWindow::processImage() {
     if (currentImage.empty()) return;
 
     cv::Mat processedMat;
+    QString selectedAlgorithm = algorithmSelect->currentText();
 
-    if (algorithmSelect->currentText() == "Otsu Thresholding") {
-        cv::Mat gray;
-        if (currentImage.channels() == 3) {
-            cv::cvtColor(currentImage, gray, cv::COLOR_BGR2GRAY);
-        } else {
-            gray = currentImage.clone();
-        }
-        
-        // --- NEW DEBUGGING CODE ---
-        // 1. Capture the threshold value Otsu calculated
-        double otsuThresh = cv::threshold(gray, processedMat, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
-        
-        // 2. Print it to the console
-        qDebug() << "======================================";
-        qDebug() << "Calculated Otsu Threshold Value:" << otsuThresh;
-        qDebug() << "======================================";
-
-        // --- THE PIXEL COUNTER ---
-        int whitePixels = cv::countNonZero(processedMat);
-        int totalPixels = processedMat.rows * processedMat.cols;
-        qDebug() << "Total Pixels :" << totalPixels;
-        qDebug() << "White Pixels :" << whitePixels;
-        qDebug() << "Black Pixels :" << (totalPixels - whitePixels);
-        
-        // cv::imwrite("debug_otsu_result.png", processedMat);
-
-        // // 3. Save the image directly to your build folder to bypass Qt's UI
-        // cv::imwrite("debug_otsu_result.png", processedMat);
+    // Route the image to the correct algorithm in Thresholding.cpp
+    if (selectedAlgorithm == "Otsu Thresholding") {
+        processedMat = Thresholding::applyOtsu(currentImage);
+    } 
+    else if (selectedAlgorithm == "Optimal Thresholding") {
+        processedMat = Thresholding::applyOptimal(currentImage);
+    }
+    else if (selectedAlgorithm == "Local Thresholding") {
+        processedMat = Thresholding::applyLocal(currentImage);
+    }
+    else if (selectedAlgorithm == "Spectral Thresholding") {
+        processedMat = Thresholding::applySpectral(currentImage);
     }
 
-    // Display the result in Qt
-    QImage qimg = cvMatToQImage(processedMat);
-    processedImageLabel->setPixmap(QPixmap::fromImage(qimg).scaled(processedImageLabel->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    // Display the result
+    if (!processedMat.empty()) {
+        QImage qimg = cvMatToQImage(processedMat);
+        processedImageLabel->setPixmap(QPixmap::fromImage(qimg).scaled(processedImageLabel->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    }
 }
 
 // THE BRIDGE: Converts OpenCV Mat to Qt Image

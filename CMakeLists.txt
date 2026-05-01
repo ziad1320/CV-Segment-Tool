@@ -21,7 +21,9 @@ find_package(OpenCV REQUIRED)
 set(SOURCES
     src/main.cpp
     src/MainWindow.cpp
+    src/Thresholding.cpp
     include/MainWindow.h
+    include/Thresholding.h
 )
 
 # 2. Create the executable using the full list of sources
