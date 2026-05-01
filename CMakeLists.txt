@@ -22,8 +22,10 @@ set(SOURCES
     src/main.cpp
     src/MainWindow.cpp
     src/Thresholding.cpp
+    src/Segmentation.cpp
     include/MainWindow.h
     include/Thresholding.h
+    include/Segmentation.h
 )
 
 # 2. Create the executable using the full list of sources

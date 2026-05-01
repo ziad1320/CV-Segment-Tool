@@ -1,5 +1,6 @@
 #include "../include/MainWindow.h"
-#include "../include/Thresholding.h" // Includes all our math algorithms
+#include "../include/Thresholding.h"
+#include "../include/Segmentation.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFileDialog>
@@ -31,6 +32,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     algorithmSelect->addItem("Optimal Thresholding");
     algorithmSelect->addItem("Local Thresholding");
     algorithmSelect->addItem("Spectral Thresholding");
+    // --- NEW SEGMENTATION ITEMS ---
+    algorithmSelect->insertSeparator(algorithmSelect->count()); // Visual line in dropdown
+    algorithmSelect->addItem("K-Means Segmentation");
+    algorithmSelect->addItem("Mean Shift Segmentation");
 
     // 2. Arrange UI with Layouts
     QWidget *centralWidget = new QWidget(this);
@@ -89,6 +94,14 @@ void MainWindow::processImage() {
     }
     else if (selectedAlgorithm == "Spectral Thresholding") {
         processedMat = Thresholding::applySpectral(currentImage);
+    }
+    // --- NEW SEGMENTATION ROUTES ---
+    else if (selectedAlgorithm == "K-Means Segmentation") {
+        // We use the default k=4, but later you could add a UI slider to let the user change 'k'!
+        processedMat = Segmentation::applyKMeans(currentImage, 4); 
+    }
+    else if (selectedAlgorithm == "Mean Shift Segmentation") {
+        processedMat = Segmentation::applyMeanShift(currentImage);
     }
 
     // Display the result
