@@ -18,13 +18,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     originalImageLabel = new QLabel("Original Image\n(Click to select Seeds)", this);
     originalImageLabel->setAlignment(Qt::AlignCenter);
     originalImageLabel->setStyleSheet("border: 2px solid #444; background-color: #222; color: gray;");
-    originalImageLabel->setMinimumSize(400, 300);
+    originalImageLabel->setMinimumSize(500, 400);
     originalImageLabel->installEventFilter(this); 
 
     processedImageLabel = new QLabel("Processed Result", this);
     processedImageLabel->setAlignment(Qt::AlignCenter);
     processedImageLabel->setStyleSheet("border: 2px solid #444; background-color: #222; color: gray;");
-    processedImageLabel->setMinimumSize(400, 300);
+    processedImageLabel->setMinimumSize(500, 400);
 
     QHBoxLayout *imageLayout = new QHBoxLayout();
     imageLayout->addWidget(originalImageLabel, 1);
@@ -204,21 +204,34 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
         int pixmapW = pixmap.width();
         int pixmapH = pixmap.height();
 
-        int clickX = mouseEvent->position().toPoint().x();
-        int clickY = mouseEvent->position().toPoint().y();
+        // --- THE FIX: Calculate the centered offset margins ---
+        int xOffset = (labelW - pixmapW) / 2;
+        int yOffset = (labelH - pixmapH) / 2;
 
-        if (clickX >= 0 && clickX < pixmapW && clickY >= 0 && clickY < pixmapH) {
-            int trueX = (clickX * currentImage.cols) / pixmapW;
-            int trueY = (clickY * currentImage.rows) / pixmapH;
+        // Get raw click relative to the label's top-left corner
+        int rawClickX = mouseEvent->position().toPoint().x();
+        int rawClickY = mouseEvent->position().toPoint().y();
+
+        // Adjust the click to be relative to the actual drawn image pixels
+        int imgClickX = rawClickX - xOffset;
+        int imgClickY = rawClickY - yOffset;
+
+        // Ensure the user actually clicked ON the image, not in the empty margins
+        if (imgClickX >= 0 && imgClickX < pixmapW && imgClickY >= 0 && imgClickY < pixmapH) {
+            
+            // Map the scaled click back to the true original high-res image coordinates
+            int trueX = (imgClickX * currentImage.cols) / pixmapW;
+            int trueY = (imgClickY * currentImage.rows) / pixmapH;
 
             cv::Vec3b color = currentImage.at<cv::Vec3b>(trueY, trueX);
             userSeeds.push_back(color);
-            userSeedPoints.push_back(cv::Point(trueX, trueY)); // Store coords for Region Growing
+            userSeedPoints.push_back(cv::Point(trueX, trueY)); 
 
             log(QString("Picked Seed Point: (%1, %2) Color: [B:%3, G:%4, R:%5]")
                 .arg(trueX).arg(trueY).arg(color[0]).arg(color[1]).arg(color[2]));
             
-            drawSeedOnImage(QPoint(clickX, clickY));
+            // Draw the red crosshair using the adjusted image coordinates!
+            drawSeedOnImage(QPoint(imgClickX, imgClickY));
             
             if (userSeeds.size() > (size_t)kSpinner->value()) {
                 kSpinner->setValue(userSeeds.size());
