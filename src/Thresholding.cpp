@@ -6,19 +6,88 @@
 // ==========================================
 // OTSU THRESHOLDING
 // ==========================================
-cv::Mat Thresholding::applyOtsu(const cv::Mat& inputImage) {
+/*The goal of Otsu's method is to find the perfect threshold value (k) to separate the pixels of an image into two 
+    distinct classes (foreground and background). It does this by testing every possible threshold and picking the 
+    one that maximizes the between-class variance, Maximizing this variance simply means we want the foreground and 
+    background to be as mathematically distinct from each other as possible.*/
+cv::Mat Thresholding::applyOtsu(const cv::Mat& inputImage, QString& logOutput) {
     cv::Mat gray, result;
     if (inputImage.channels() == 3) cv::cvtColor(inputImage, gray, cv::COLOR_BGR2GRAY);
     else gray = inputImage.clone();
 
-    cv::threshold(gray, result, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
+    int totalPixels = gray.rows * gray.cols;
+
+    // ==========================================
+    // STEP 1: Compute normalized histogram (Pi)
+    // ==========================================
+    std::vector<double> P(256, 0.0);
+    for (int r = 0; r < gray.rows; ++r) { 
+        for (int c = 0; c < gray.cols; ++c) {
+            int pixelValue = gray.at<uchar>(r, c);
+            P[pixelValue] += 1.0;
+        }
+    }
+    // Divide by total pixels to get probabilities (normalisation)
+    for (int i = 0; i < 256; ++i) {
+        P[i] = P[i] / totalPixels; 
+    }
+
+    // ==========================================
+    // STEP 4: Compute global mean (mG)
+    // We calculate this early because it is a constant
+    // ==========================================
+    double mG = 0.0;
+    for (int i = 0; i < 256; ++i) {
+        mG += i * P[i];
+    }
+
+    // Variables to track our search for the best threshold
+    double maxVariance = -1.0;
+    int optimalThreshold = 0;
+
+    // Running totals for our cumulative math
+    double P1_k = 0.0;  //background probability
+    double m_k = 0.0;  //cumulative mean
+
+    // ==========================================
+    // STEPS 2, 3, 5, & 6: Test all thresholds (k)
+    // ==========================================
+    // We start a loop to test every single number from 0 to 255 to see which one makes the best threshold line (k)
+    for (int k = 0; k < 256; ++k) {
+        // Step 2: Compute cumulative probability P1(k)
+        P1_k += P[k]; 
+        // Step 3: Compute cumulative mean m(k)
+        m_k += k * P[k];
+        // Safety check to avoid dividing by zero
+        if (P1_k == 0.0 || P1_k == 1.0) {
+            continue; 
+        }
+        // Step 5: Compute between-class variance (sigma_b_squared)
+        // Formula: [mG * P1(k) - m(k)]^2 / [P1(k) * (1 - P1(k))]
+        double numerator = (mG * P1_k) - m_k;
+        numerator = numerator * numerator; // Square it
+        
+        double denominator = P1_k * (1.0 - P1_k);
+        
+        double sigma_b_squared = numerator / denominator;
+
+        // Step 6: Find the threshold 'k' that maximizes the variance
+        if (sigma_b_squared > maxVariance) {
+            maxVariance = sigma_b_squared;
+            optimalThreshold = k;
+        }
+    }
+    logOutput = QString("Otsu Threshold Calculated: %1").arg(optimalThreshold);
+
+    // Now apply our manually calculated optimal threshold!
+    cv::threshold(gray, result, optimalThreshold, 255, cv::THRESH_BINARY);
     return result;
 }
 
 // ==========================================
 // OPTIMAL THRESHOLDING
 // ==========================================
-cv::Mat Thresholding::applyOptimal(const cv::Mat& inputImage) {
+cv::Mat Thresholding::applyOptimal(const cv::Mat& inputImage, QString& logOutput) {
     cv::Mat gray, result;
     if (inputImage.channels() == 3) cv::cvtColor(inputImage, gray, cv::COLOR_BGR2GRAY);
     else gray = inputImage.clone();
@@ -71,9 +140,7 @@ cv::Mat Thresholding::applyOptimal(const cv::Mat& inputImage) {
         // Step 3: Set new T
         T = (bgMean[0] + fgMean[0]) / 2.0;
     }
-
-    qDebug() << "Optimal Threshold Calculated:" << T;
-
+    logOutput = QString("Optimal Threshold Calculated: %1").arg(T);
     // Apply the final threshold
     cv::threshold(gray, result, T, 255, cv::THRESH_BINARY);
     return result;

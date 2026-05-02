@@ -35,7 +35,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     QVBoxLayout *sideLayout = new QVBoxLayout(sidebar);
 
     // General Controls
-    loadButton = new QPushButton("📂 Load New Image", this);
+    loadButton = new QPushButton("Load New Image", this);
     loadButton->setMinimumHeight(40);
     sideLayout->addWidget(loadButton);
 
@@ -86,8 +86,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
 // Custom function to print timestamps and text to our UI terminal
 void MainWindow::log(const QString &message) {
-    QString time = QDateTime::currentDateTime().toString("hh:mm:ss");
-    logTerminal->append(QString("[%1] %2").arg(time, message));
+    logTerminal->append(QString("%1").arg( message));
 }
 
 void MainWindow::openImage() {
@@ -96,7 +95,7 @@ void MainWindow::openImage() {
         currentImage = cv::imread(fileName.toLocal8Bit().constData());
         if (currentImage.empty()) {
             QMessageBox::warning(this, "Error", "Failed to load image!");
-            log("❌ ERROR: Failed to load image.");
+            log("ERROR: Failed to load image.");
             return;
         }
         
@@ -105,13 +104,13 @@ void MainWindow::openImage() {
         processedImageLabel->clear();
         processedImageLabel->setText("Algorithm Result Area");
         
-        log("✅ Loaded image: " + fileName.section('/', -1));
+        log("Loaded image: " + fileName.section('/', -1));
     }
 }
 
 void MainWindow::processThreshold() {
     if (currentImage.empty()) { 
-        log("⚠️ Warning: Load an image first!"); 
+        log("Warning: Load an image first!"); 
         return; 
     }
     
@@ -119,11 +118,14 @@ void MainWindow::processThreshold() {
     QString selectedAlgorithm = thresholdSelect->currentText();
     log("Running " + selectedAlgorithm + "...");
 
+    //empty string to catch messages from the backend
+    QString algorithmLog = "";
+
     if (selectedAlgorithm == "Otsu Thresholding") {
-        processedMat = Thresholding::applyOtsu(currentImage);
+        processedMat = Thresholding::applyOtsu(currentImage, algorithmLog);
     } 
     else if (selectedAlgorithm == "Optimal Thresholding") {
-        processedMat = Thresholding::applyOptimal(currentImage);
+        processedMat = Thresholding::applyOptimal(currentImage, algorithmLog);
     }
     else if (selectedAlgorithm == "Local Thresholding") {
         processedMat = Thresholding::applyLocal(currentImage);
@@ -132,13 +134,17 @@ void MainWindow::processThreshold() {
         processedMat = Thresholding::applySpectral(currentImage);
     }
 
+    if (!algorithmLog.isEmpty()) {
+        log("   ↳ " + algorithmLog);
+    }
+
     displayResult(processedMat);
-    log("✨ Finished " + selectedAlgorithm);
+    log("Finished " + selectedAlgorithm);
 }
 
 void MainWindow::processSegmentation() {
     if (currentImage.empty()) { 
-        log("⚠️ Warning: Load an image first!"); 
+        log("Warning: Load an image first!"); 
         return; 
     }
     
@@ -160,7 +166,7 @@ void MainWindow::processSegmentation() {
     }
 
     displayResult(processedMat);
-    log("✨ Finished " + selectedAlgorithm);
+    log("Finished " + selectedAlgorithm);
 }
 
 void MainWindow::displayResult(const cv::Mat &img) {

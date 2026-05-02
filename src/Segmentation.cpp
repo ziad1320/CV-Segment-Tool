@@ -124,6 +124,10 @@ cv::Mat Segmentation::applyRegionGrowing(const cv::Mat& inputImage) {
     return finalOutput;
 }
 
+
+// ==========================================
+// AGGLOMERATIVE ALGORITHM
+// ==========================================
 cv::Mat Segmentation::applyAgglomerative(const cv::Mat& inputImage) {
     if (inputImage.empty()) return inputImage;
 
