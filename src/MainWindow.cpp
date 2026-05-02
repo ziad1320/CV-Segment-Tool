@@ -372,6 +372,7 @@ void MainWindow::processThreshold() {
     }
     
     cv::Mat grayImage;
+    cv::cvtColor(currentImage, grayImage, cv::COLOR_BGR2GRAY);
     cv::Mat processedMat;
     QString selectedAlgorithm = thresholdSelect->currentText();
     log("Running " + selectedAlgorithm + "...");
