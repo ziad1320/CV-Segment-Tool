@@ -49,7 +49,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     QVBoxLayout *sideLayout = new QVBoxLayout(sidebar);
 
     // General Controls
-    loadButton = new QPushButton("📂 Load New Image", this);
+    loadButton = new QPushButton("Load New Image", this);
     loadButton->setMinimumHeight(40);
     sideLayout->addWidget(loadButton);
 
@@ -64,7 +64,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     sideLayout->addWidget(threshBox);
 
     // Interactive K-Means Box
-    QGroupBox *kmeansBox = new QGroupBox("Interactive K-Means", this);
+    QGroupBox *kmeansBox = new QGroupBox("K-Means", this);
     kmeansBox->setStyleSheet("QGroupBox { border: 1px solid #00AAFF; margin-top: 10px; } QGroupBox::title { subcontrol-origin: margin; left: 10px; color: #00AAFF; }");
     QVBoxLayout *kLayout = new QVBoxLayout(kmeansBox);
     
@@ -84,7 +84,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     iterRow->addWidget(iterSpinner);
     kLayout->addLayout(iterRow);
 
-    runKMeansBtn = new QPushButton("Run Interactive K-Means", this);
+    runKMeansBtn = new QPushButton("Run K-Means", this);
     clearSeedsBtn = new QPushButton("Clear Clicked Seeds", this);
     kLayout->addWidget(runKMeansBtn);
     kLayout->addWidget(clearSeedsBtn);
@@ -182,7 +182,7 @@ void MainWindow::clearKMeansSeeds() {
 
 void MainWindow::runInteractiveKMeans() {
     if (currentImage.empty()) { 
-        log("⚠️ Warning: Load an image first!"); 
+        log("Warning: Load an image first!"); 
         return; 
     }
     
@@ -216,7 +216,7 @@ void MainWindow::openImage() {
         currentImage = cv::imread(fileName.toLocal8Bit().constData());
         if (currentImage.empty()) {
             QMessageBox::warning(this, "Error", "Failed to load image!");
-            log("❌ ERROR: Failed to load image.");
+            log("ERROR: Failed to load image.");
             return;
         }
         
@@ -226,25 +226,17 @@ void MainWindow::openImage() {
         processedImageLabel->setText("Algorithm Result Area");
         clearKMeansSeeds(); 
         
-        log("✅ Loaded image: " + fileName.section('/', -1));
+        log("Loaded image: " + fileName.section('/', -1));
     }
 }
 
 void MainWindow::processThreshold() {
     if (currentImage.empty()) { 
-        log("⚠️ Warning: Load an image first!"); 
+        log("Warning: Load an image first!"); 
         return; 
     }
     
     cv::Mat grayImage;
-    // if (currentImage.channels() == 4) {
-    //     cv::cvtColor(currentImage, grayImage, cv::COLOR_BGRA2GRAY); 
-    // } else if (currentImage.channels() == 3) {
-    //     cv::cvtColor(currentImage, grayImage, cv::COLOR_BGR2GRAY);  
-    // } else {
-    //     grayImage = currentImage.clone();                           
-    // }
-
     cv::Mat processedMat;
     QString selectedAlgorithm = thresholdSelect->currentText();
     log("Running " + selectedAlgorithm + "...");
@@ -269,12 +261,12 @@ void MainWindow::processThreshold() {
     }
 
     displayResult(processedMat);
-    log("✨ Finished " + selectedAlgorithm);
+    log("Finished " + selectedAlgorithm);
 }
 
 void MainWindow::processSegmentation() {
     if (currentImage.empty()) { 
-        log("⚠️ Warning: Load an image first!"); 
+        log("Warning: Load an image first!"); 
         return; 
     }
     
@@ -297,7 +289,7 @@ void MainWindow::processSegmentation() {
     QApplication::restoreOverrideCursor();
 
     displayResult(processedMat);
-    log("✨ Finished " + selectedAlgorithm);
+    log("Finished " + selectedAlgorithm);
 }
 
 void MainWindow::displayResult(const cv::Mat &img) {
