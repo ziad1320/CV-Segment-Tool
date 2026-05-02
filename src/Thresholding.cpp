@@ -3,6 +3,9 @@
 #include <vector>
 #include <algorithm>
 
+// ==========================================
+// OTSU THRESHOLDING
+// ==========================================
 cv::Mat Thresholding::applyOtsu(const cv::Mat& inputImage) {
     cv::Mat gray, result;
     if (inputImage.channels() == 3) cv::cvtColor(inputImage, gray, cv::COLOR_BGR2GRAY);
@@ -12,27 +15,73 @@ cv::Mat Thresholding::applyOtsu(const cv::Mat& inputImage) {
     return result;
 }
 
+// ==========================================
+// OPTIMAL THRESHOLDING
+// ==========================================
 cv::Mat Thresholding::applyOptimal(const cv::Mat& inputImage) {
     cv::Mat gray, result;
     if (inputImage.channels() == 3) cv::cvtColor(inputImage, gray, cv::COLOR_BGR2GRAY);
     else gray = inputImage.clone();
 
-    double T = cv::mean(gray)[0]; 
+    int rows = gray.rows;
+    int cols = gray.cols;
+
+    // ==========================================
+    // STEP 1: Initialization
+    // Assume 4 corners are background, remainder is object
+    // ==========================================
+    
+    // Grab the pixel values of the 4 extreme corners
+    double cornerSum = gray.at<uchar>(0, 0) +               // Top-Left
+                       gray.at<uchar>(0, cols - 1) +        // Top-Right
+                       gray.at<uchar>(rows - 1, 0) +        // Bottom-Left
+                       gray.at<uchar>(rows - 1, cols - 1);  // Bottom-Right
+    
+    double initialBgMean = cornerSum / 4.0;
+
+    // Calculate the mean of the "remainder" (everything except the 4 corners)
+    double totalSum = cv::sum(gray)[0];
+    int totalPixels = rows * cols;
+    
+    double objectSum = totalSum - cornerSum;
+    int objectPixels = totalPixels - 4;
+    double initialFgMean = objectSum / (double)objectPixels;
+
+    // Calculate the very first T based on these initial means
+    double T = (initialBgMean + initialFgMean) / 2.0;
     double previousT = -1.0;
 
-    while (std::abs(T - previousT) > 0.5) {
+    // ==========================================
+    // STEPS 2, 3, & 4: The Iteration Loop
+    // ==========================================
+    
+    // Step 4: Loop until T(t+1) == T(t) 
+    // We use > 0.1 for floating point safety
+    while (std::abs(T - previousT) > 0.1) {
         previousT = T;
+
+        // Step 2: Segment based on current T
         cv::Mat bgMask = gray < T;
         cv::Mat fgMask = gray >= T;
+
+        // Step 2: Compute new means for background and object
         cv::Scalar bgMean = cv::mean(gray, bgMask);
         cv::Scalar fgMean = cv::mean(gray, fgMask);
+
+        // Step 3: Set new T
         T = (bgMean[0] + fgMean[0]) / 2.0;
     }
 
+    qDebug() << "Optimal Threshold Calculated:" << T;
+
+    // Apply the final threshold
     cv::threshold(gray, result, T, 255, cv::THRESH_BINARY);
     return result;
 }
 
+// ==========================================
+// LOCAL THRESHOLDING
+// ==========================================
 cv::Mat Thresholding::applyLocal(const cv::Mat& inputImage) {
     cv::Mat gray, result;
     if (inputImage.channels() == 3) cv::cvtColor(inputImage, gray, cv::COLOR_BGR2GRAY);
@@ -46,6 +95,9 @@ cv::Mat Thresholding::applyLocal(const cv::Mat& inputImage) {
     return result;
 }
 
+// ==========================================
+// SPECTRAL THRESHOLDING
+// ==========================================
 cv::Mat Thresholding::applySpectral(const cv::Mat& inputImage) {
     cv::Mat gray;
     if (inputImage.channels() == 3) cv::cvtColor(inputImage, gray, cv::COLOR_BGR2GRAY);
