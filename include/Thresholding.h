@@ -4,8 +4,8 @@
 
 class Thresholding {
 public:
-    static cv::Mat applyOtsu(const cv::Mat& inputImage, QString& logOutput);
-    static cv::Mat applyOptimal(const cv::Mat& inputImage, QString& logOutput);
-    static cv::Mat applySpectral(const cv::Mat& inputImage); // Multi-mode (3 levels)
-    static cv::Mat applyLocal(const cv::Mat& inputImage);    // Adaptive
+    static cv::Mat applyOtsu(const cv::Mat& grayImage, QString& logOutput);
+    static cv::Mat applyOptimal(const cv::Mat& grayImage, QString& logOutput);
+    static cv::Mat applySpectral(const cv::Mat& grayImage); 
+    static cv::Mat applyLocal(const cv::Mat& grayImage);    
 };

@@ -4,34 +4,102 @@
 // ==========================================
 // K-MEANS ALGORITHM
 // ==========================================
-cv::Mat Segmentation::applyKMeans(const cv::Mat& inputImage, int k) {
+cv::Mat Segmentation::applyKMeans(const cv::Mat& inputImage, int k, int maxIterations, const std::vector<cv::Vec3b>& initialSeeds, QString& logOutput) {
     if (inputImage.empty()) return inputImage;
 
-    // 1. Flatten the image into a 1D column of pixels (3 channels for RGB)
-    cv::Mat data = inputImage.reshape(1, inputImage.total());
-    data.convertTo(data, CV_32F); // K-Means requires 32-bit floats
+    int rows = inputImage.rows;
+    int cols = inputImage.cols;
+    cv::Mat result = inputImage.clone();
 
-    // 2. Define K-Means criteria and run the algorithm
-    cv::TermCriteria criteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 10, 1.0);
-    cv::Mat labels, centers;
-    cv::kmeans(data, k, labels, criteria, 3, cv::KMEANS_PP_CENTERS, centers);
-
-    // 3. Convert the centers (the mathematical average colors) back to standard 8-bit colors
-    centers.convertTo(centers, CV_8U);
-
-    // 4. Create a new image by mapping every pixel to its new cluster color
-    cv::Mat result(inputImage.size(), inputImage.type());
-    cv::Mat resultFlattened = result.reshape(1, result.total());
-
-    for (int i = 0; i < data.rows; ++i) {
-        int clusterIdx = labels.at<int>(i);
-        // Apply the BGR color of the assigned cluster to the pixel
-        resultFlattened.at<cv::Vec3b>(i, 0)[0] = centers.at<uchar>(clusterIdx, 0); // B
-        resultFlattened.at<cv::Vec3b>(i, 0)[1] = centers.at<uchar>(clusterIdx, 1); // G
-        resultFlattened.at<cv::Vec3b>(i, 0)[2] = centers.at<uchar>(clusterIdx, 2); // R
+    // 1. Initialize Centroids (Centers)
+    std::vector<cv::Vec3f> centers(k);
+    
+    // If user clicked points, use those colors! Otherwise, pick random pixels.
+    for (int i = 0; i < k; ++i) {
+        if (i < initialSeeds.size()) {
+            centers[i] = cv::Vec3f(initialSeeds[i][0], initialSeeds[i][1], initialSeeds[i][2]);
+        } else {
+            // Pick a random pixel if the user didn't click enough points
+            int r = rand() % rows;
+            int c = rand() % cols;
+            cv::Vec3b pixel = inputImage.at<cv::Vec3b>(r, c);
+            centers[i] = cv::Vec3f(pixel[0], pixel[1], pixel[2]);
+        }
     }
 
-    qDebug() << "K-Means Segmentation applied with K =" << k;
+    // Array to hold the assigned cluster (0 to k-1) for every single pixel
+    std::vector<int> labels(rows * cols, 0);
+    bool centersChanged = true;
+    int currentIter = 0;
+
+    // 2. The K-Means Loop
+    while (centersChanged && currentIter < maxIterations) {
+        centersChanged = false;
+        
+        // Track the sums and counts to calculate the new average later
+        std::vector<cv::Vec3f> newCenterSums(k, cv::Vec3f(0, 0, 0));
+        std::vector<int> clusterCounts(k, 0);
+
+        // Step A: Assign every pixel to the nearest center
+        for (int r = 0; r < rows; ++r) {
+            for (int c = 0; c < cols; ++c) {
+                cv::Vec3b pixel = inputImage.at<cv::Vec3b>(r, c);
+                
+                float minDistance = FLT_MAX;
+                int bestCluster = 0;
+
+                // Test distance against all 'k' centers
+                for (int i = 0; i < k; ++i) {
+                    float dB = pixel[0] - centers[i][0];
+                    float dG = pixel[1] - centers[i][1];
+                    float dR = pixel[2] - centers[i][2];
+                    
+                    // Euclidean distance (we don't need sqrt since we just need the smallest)
+                    float dist = (dB*dB) + (dG*dG) + (dR*dR); 
+
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        bestCluster = i;
+                    }
+                }
+
+                // Save assignment and add to running totals
+                int pixelIdx = r * cols + c;
+                labels[pixelIdx] = bestCluster;
+                newCenterSums[bestCluster] += cv::Vec3f(pixel[0], pixel[1], pixel[2]);
+                clusterCounts[bestCluster]++;
+            }
+        }
+
+        // Step B: Recalculate the centers
+        for (int i = 0; i < k; ++i) {
+            if (clusterCounts[i] > 0) {
+                cv::Vec3f updatedCenter = newCenterSums[i] / (float)clusterCounts[i];
+                
+                // Check if the center moved significantly (> 1.0 color value)
+                float moveDist = cv::norm(centers[i] - updatedCenter);
+                if (moveDist > 1.0) {
+                    centersChanged = true;
+                }
+                centers[i] = updatedCenter;
+            }
+        }
+        currentIter++;
+    }
+
+    // 3. Rebuild the final image using the final average colors
+    for (int r = 0; r < rows; ++r) {
+        for (int c = 0; c < cols; ++c) {
+            int bestCluster = labels[r * cols + c];
+            result.at<cv::Vec3b>(r, c) = cv::Vec3b(
+                (uchar)centers[bestCluster][0], 
+                (uchar)centers[bestCluster][1], 
+                (uchar)centers[bestCluster][2]
+            );
+        }
+    }
+
+    logOutput = QString("K-Means converged in %1 iterations with K=%2").arg(currentIter).arg(k);
     return result;
 }
 
