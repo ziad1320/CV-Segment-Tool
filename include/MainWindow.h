@@ -24,9 +24,12 @@ protected:
 private slots:
     void openImage();
     void processThreshold();   
-    void processSegmentation(); 
-    void runInteractiveKMeans(); // NEW: Specific slot for K-Means
-    void clearKMeansSeeds();     // NEW: Clears user clicks
+    // void processSegmentation(); 
+    void runInteractiveKMeans(); 
+    void clearKMeansSeeds();     
+    void runMeanShift();
+    void runRegionGrowing();
+    void runAgglomerative();
 
 private:
     // UI Elements - Images
@@ -42,18 +45,30 @@ private:
     QPushButton *applyThresholdBtn;
 
     // UI Elements - Segmentation
-    QComboBox *segmentationSelect;
-    QPushButton *applySegmentationBtn;
+    QDoubleSpinBox *spatialBandwidthSpinner;
+    QDoubleSpinBox *colorBandwidthSpinner;
+    QSpinBox *msIterSpinner;
+    QPushButton *runMeanShiftBtn;
 
-    // NEW UI Elements - Interactive K-Means Box
+    // UI Elements - Interactive K-Means Box
     QSpinBox *kSpinner;
     QSpinBox *iterSpinner;
     QPushButton *runKMeansBtn;
     QPushButton *clearSeedsBtn;
 
+    // Region Growing Elements
+    QDoubleSpinBox *rgErrorSpinner;
+    QComboBox *rgPatchSizeSelect;
+    QPushButton *runRegionGrowingBtn;
+
+    // Agglomerative Elements
+    QSpinBox *aggloClustersSpinner;
+    QPushButton *runAggloBtn;
+
     // Data
     cv::Mat currentImage;
-    std::vector<cv::Vec3b> userSeeds; // Stores the colors the user clicked
+    std::vector<cv::Vec3b> userSeeds;
+    std::vector<cv::Point> userSeedPoints;
 
     // Helper functions
     void log(const QString &message);

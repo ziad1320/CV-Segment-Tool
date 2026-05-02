@@ -12,10 +12,10 @@
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     setWindowTitle("CVSegmenter Pro - Interactive");
-    resize(1200, 750); // Slightly taller to fit all 3 boxes
+    resize(1200, 850); // Slightly taller to fit all the new dedicated boxes
 
     // --- 1. IMAGE AREA (Top Right) ---
-    originalImageLabel = new QLabel("Original Image\n(Click to select K-Means seeds)", this);
+    originalImageLabel = new QLabel("Original Image\n(Click to select Seeds)", this);
     originalImageLabel->setAlignment(Qt::AlignCenter);
     originalImageLabel->setStyleSheet("border: 2px solid #444; background-color: #222; color: gray;");
     originalImageLabel->setMinimumSize(400, 300);
@@ -90,15 +90,80 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     kLayout->addWidget(clearSeedsBtn);
     sideLayout->addWidget(kmeansBox);
 
-    // Standard Segmentation Box
-    QGroupBox *segBox = new QGroupBox("Other Segmentation Algorithms", this);
-    QVBoxLayout *sLayout = new QVBoxLayout(segBox);
-    segmentationSelect = new QComboBox(this);
-    segmentationSelect->addItems({"Mean Shift Segmentation", "Region Growing", "Agglomerative Clustering"});
-    applySegmentationBtn = new QPushButton("Apply Selected", this);
-    sLayout->addWidget(segmentationSelect);
-    sLayout->addWidget(applySegmentationBtn);
-    sideLayout->addWidget(segBox);
+    // Dedicated Mean Shift Box
+    QGroupBox *meanShiftBox = new QGroupBox("Mean Shift Segmentation", this);
+    meanShiftBox->setStyleSheet("QGroupBox { border: 1px solid #FFAA00; margin-top: 10px; } QGroupBox::title { subcontrol-origin: margin; left: 10px; color: #FFAA00; }");
+    QVBoxLayout *msLayout = new QVBoxLayout(meanShiftBox);
+
+    QHBoxLayout *spatialRow = new QHBoxLayout();
+    spatialRow->addWidget(new QLabel("Spatial Bandwidth:", this));
+    spatialBandwidthSpinner = new QDoubleSpinBox(this);
+    spatialBandwidthSpinner->setRange(1.0, 50.0);
+    spatialBandwidthSpinner->setValue(10.0); // Default
+    spatialRow->addWidget(spatialBandwidthSpinner);
+    msLayout->addLayout(spatialRow);
+
+    QHBoxLayout *colorRow = new QHBoxLayout();
+    colorRow->addWidget(new QLabel("Color Bandwidth:", this));
+    colorBandwidthSpinner = new QDoubleSpinBox(this);
+    colorBandwidthSpinner->setRange(5.0, 100.0);
+    colorBandwidthSpinner->setValue(25.0); // Default
+    colorRow->addWidget(colorBandwidthSpinner);
+    msLayout->addLayout(colorRow);
+
+    QHBoxLayout *msIterRow = new QHBoxLayout();
+    msIterRow->addWidget(new QLabel("Max Iters:", this));
+    msIterSpinner = new QSpinBox(this);
+    msIterSpinner->setRange(1, 100);
+    msIterSpinner->setValue(10); // Default
+    msIterRow->addWidget(msIterSpinner);
+    msLayout->addLayout(msIterRow);
+
+    runMeanShiftBtn = new QPushButton("Run Mean Shift", this);
+    msLayout->addWidget(runMeanShiftBtn);
+    sideLayout->addWidget(meanShiftBox);
+
+    // --- NEW: Dedicated Region Growing Box ---
+    QGroupBox *rgBox = new QGroupBox("Region Growing", this);
+    rgBox->setStyleSheet("QGroupBox { border: 1px solid #AA00FF; margin-top: 10px; } QGroupBox::title { subcontrol-origin: margin; left: 10px; color: #AA00FF; }");
+    QVBoxLayout *rgLayout = new QVBoxLayout(rgBox);
+
+    QHBoxLayout *errRow = new QHBoxLayout();
+    errRow->addWidget(new QLabel("Error Threshold:", this));
+    rgErrorSpinner = new QDoubleSpinBox(this);
+    rgErrorSpinner->setRange(1.0, 255.0);
+    rgErrorSpinner->setValue(30.0);
+    errRow->addWidget(rgErrorSpinner);
+    rgLayout->addLayout(errRow);
+
+    QHBoxLayout *patchRow = new QHBoxLayout();
+    patchRow->addWidget(new QLabel("Patch Size:", this));
+    rgPatchSizeSelect = new QComboBox(this);
+    rgPatchSizeSelect->addItems({"2x2", "3x3", "4x4"});
+    rgPatchSizeSelect->setCurrentText("3x3");
+    patchRow->addWidget(rgPatchSizeSelect);
+    rgLayout->addLayout(patchRow);
+
+    runRegionGrowingBtn = new QPushButton("Run Region Growing", this);
+    rgLayout->addWidget(runRegionGrowingBtn);
+    sideLayout->addWidget(rgBox);
+
+    // --- NEW: Dedicated Agglomerative Clustering Box ---
+    QGroupBox *aggloBox = new QGroupBox("Agglomerative Clustering", this);
+    aggloBox->setStyleSheet("QGroupBox { border: 1px solid #00FA9A; margin-top: 10px; } QGroupBox::title { subcontrol-origin: margin; left: 10px; color: #00FA9A; }");
+    QVBoxLayout *aggloLayout = new QVBoxLayout(aggloBox);
+
+    QHBoxLayout *aggloRow = new QHBoxLayout();
+    aggloRow->addWidget(new QLabel("Target Clusters:", this));
+    aggloClustersSpinner = new QSpinBox(this);
+    aggloClustersSpinner->setRange(1, 100);
+    aggloClustersSpinner->setValue(4);
+    aggloRow->addWidget(aggloClustersSpinner);
+    aggloLayout->addLayout(aggloRow);
+
+    runAggloBtn = new QPushButton("Run Agglomerative", this);
+    aggloLayout->addWidget(runAggloBtn);
+    sideLayout->addWidget(aggloBox);
     
     // Add a stretching space at the bottom of the sidebar so the boxes don't space out weirdly
     sideLayout->addStretch();
@@ -113,11 +178,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     // --- 6. CONNECTIONS ---
     connect(loadButton, &QPushButton::clicked, this, &MainWindow::openImage);
     connect(applyThresholdBtn, &QPushButton::clicked, this, &MainWindow::processThreshold);
-    connect(applySegmentationBtn, &QPushButton::clicked, this, &MainWindow::processSegmentation);
     connect(runKMeansBtn, &QPushButton::clicked, this, &MainWindow::runInteractiveKMeans);
     connect(clearSeedsBtn, &QPushButton::clicked, this, &MainWindow::clearKMeansSeeds);
+    connect(runMeanShiftBtn, &QPushButton::clicked, this, &MainWindow::runMeanShift);
+    connect(runRegionGrowingBtn, &QPushButton::clicked, this, &MainWindow::runRegionGrowing); // NEW
+    connect(runAggloBtn, &QPushButton::clicked, this, &MainWindow::runAgglomerative);         // NEW
 
-    log("Ready. Load an image, click on colors you want to segment, and hit Run K-Means!");
+    log("Ready. Load an image, click on colors you want to segment, and hit a Run button!");
 }
 
 // ---------------------------------------------------------
@@ -137,9 +204,6 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
         int pixmapW = pixmap.width();
         int pixmapH = pixmap.height();
 
-        // int xOffset = (labelW - pixmapW) / 2;
-        // int yOffset = (labelH - pixmapH) / 2;
-
         int clickX = mouseEvent->position().toPoint().x();
         int clickY = mouseEvent->position().toPoint().y();
 
@@ -149,8 +213,11 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
 
             cv::Vec3b color = currentImage.at<cv::Vec3b>(trueY, trueX);
             userSeeds.push_back(color);
+            userSeedPoints.push_back(cv::Point(trueX, trueY)); // Store coords for Region Growing
 
-            log(QString("Picked Seed Color: [B:%1, G:%2, R:%3]").arg(color[0]).arg(color[1]).arg(color[2]));
+            log(QString("Picked Seed Point: (%1, %2) Color: [B:%3, G:%4, R:%5]")
+                .arg(trueX).arg(trueY).arg(color[0]).arg(color[1]).arg(color[2]));
+            
             drawSeedOnImage(QPoint(clickX, clickY));
             
             if (userSeeds.size() > (size_t)kSpinner->value()) {
@@ -163,7 +230,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
 }
 
 void MainWindow::drawSeedOnImage(QPoint pos) {
-    QPixmap pm = originalImageLabel->pixmap(); // FIXED for Qt6
+    QPixmap pm = originalImageLabel->pixmap(); 
     QPainter painter(&pm);
     painter.setPen(QPen(Qt::red, 3));
     painter.drawLine(pos.x() - 5, pos.y(), pos.x() + 5, pos.y());
@@ -173,13 +240,17 @@ void MainWindow::drawSeedOnImage(QPoint pos) {
 
 void MainWindow::clearKMeansSeeds() {
     userSeeds.clear();
+    userSeedPoints.clear();
     if (!currentImage.empty()) {
         QImage qimg = cvMatToQImage(currentImage);
         originalImageLabel->setPixmap(QPixmap::fromImage(qimg).scaled(originalImageLabel->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
     }
-    log("Cleared all interactive seeds.");
+    log("Cleared all interactive seeds/points.");
 }
 
+// ---------------------------------------------------------
+// Segmentation Runners
+// ---------------------------------------------------------
 void MainWindow::runInteractiveKMeans() {
     if (currentImage.empty()) { 
         log("Warning: Load an image first!"); 
@@ -199,6 +270,70 @@ void MainWindow::runInteractiveKMeans() {
 
     if (!algorithmLog.isEmpty()) log("   ↳ " + algorithmLog);
     displayResult(result);
+}
+
+void MainWindow::runMeanShift() {
+    if (currentImage.empty()) { 
+        log("Warning: Load an image first!"); 
+        return; 
+    }
+    
+    log("Running Mean Shift Segmentation (Please wait)...");
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    
+    cv::Mat processedMat = currentImage.clone(); 
+    double sBand = spatialBandwidthSpinner->value();
+    double cBand = colorBandwidthSpinner->value();
+    int iters = msIterSpinner->value();
+    
+    Segmentation::applyMeanShift(processedMat, sBand, cBand, iters);
+    
+    QApplication::restoreOverrideCursor();
+    displayResult(processedMat);
+    log("Finished Mean Shift Segmentation");
+}
+
+void MainWindow::runRegionGrowing() {
+    if (currentImage.empty()) { 
+        log("Warning: Load an image first!"); 
+        return; 
+    }
+    if (userSeedPoints.empty()) {
+        log("Warning: Please click on the original image to select at least one seed location!");
+        return;
+    }
+    
+    log(QString("Running Region Growing with %1 seeds...").arg(userSeedPoints.size()));
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    
+    double errorThresh = rgErrorSpinner->value();
+    int patchSize = 3; 
+    if (rgPatchSizeSelect->currentText() == "2x2") patchSize = 2;
+    else if (rgPatchSizeSelect->currentText() == "4x4") patchSize = 4;
+    
+    cv::Mat processedMat = Segmentation::applyRegionGrowing(currentImage, userSeedPoints, errorThresh, patchSize);
+    
+    QApplication::restoreOverrideCursor();
+    displayResult(processedMat);
+    log("Finished Region Growing Segmentation");
+}
+
+void MainWindow::runAgglomerative() {
+    if (currentImage.empty()) { 
+        log("Warning: Load an image first!"); 
+        return; 
+    }
+    
+    int targetK = aggloClustersSpinner->value();
+    log(QString("Running Agglomerative Clustering (Target Clusters=%1). Calculating...").arg(targetK));
+    
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    
+    cv::Mat processedMat = Segmentation::applyAgglomerative(currentImage, targetK);
+    
+    QApplication::restoreOverrideCursor();
+    displayResult(processedMat);
+    log("Finished Agglomerative Clustering");
 }
 
 // ---------------------------------------------------------
@@ -259,34 +394,6 @@ void MainWindow::processThreshold() {
     if (!algorithmLog.isEmpty()) {
         log("   ↳ " + algorithmLog);
     }
-
-    displayResult(processedMat);
-    log("Finished " + selectedAlgorithm);
-}
-
-void MainWindow::processSegmentation() {
-    if (currentImage.empty()) { 
-        log("Warning: Load an image first!"); 
-        return; 
-    }
-    
-    cv::Mat processedMat;
-    QString selectedAlgorithm = segmentationSelect->currentText();
-    log("Running " + selectedAlgorithm + " (Please wait)...");
-
-    QApplication::setOverrideCursor(Qt::WaitCursor);
-
-    if (selectedAlgorithm == "Mean Shift Segmentation") {
-        processedMat = Segmentation::applyMeanShift(currentImage);
-    }
-    else if (selectedAlgorithm == "Region Growing") {  
-        processedMat = Segmentation::applyRegionGrowing(currentImage);
-    }
-    else if (selectedAlgorithm == "Agglomerative Clustering") { 
-        processedMat = Segmentation::applyAgglomerative(currentImage);
-    }
-
-    QApplication::restoreOverrideCursor();
 
     displayResult(processedMat);
     log("Finished " + selectedAlgorithm);
