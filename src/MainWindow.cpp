@@ -54,14 +54,40 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     sideLayout->addWidget(loadButton);
 
     // Thresholding Box
-    QGroupBox *threshBox = new QGroupBox("Thresholding Algorithms", this);
+    QGroupBox *threshBox = new QGroupBox("Global/Spectral Algorithms", this);
     QVBoxLayout *tLayout = new QVBoxLayout(threshBox);
     thresholdSelect = new QComboBox(this);
-    thresholdSelect->addItems({"Otsu Thresholding", "Optimal Thresholding", "Local Thresholding", "Spectral Thresholding"});
+    thresholdSelect->addItems({"Otsu Thresholding", "Optimal Thresholding", "Spectral Thresholding"});
     applyThresholdBtn = new QPushButton("Apply Threshold", this);
     tLayout->addWidget(thresholdSelect);
     tLayout->addWidget(applyThresholdBtn);
     sideLayout->addWidget(threshBox);
+
+    // ---  Local Thresholding Box ---
+    QGroupBox *localThreshBox = new QGroupBox("Local Adaptive Threshold", this);
+    localThreshBox->setStyleSheet("QGroupBox { border: 1px solid #FF5555; margin-top: 10px; } QGroupBox::title { subcontrol-origin: margin; left: 10px; color: #FF5555; }");
+    QVBoxLayout *ltLayout = new QVBoxLayout(localThreshBox);
+
+    QHBoxLayout *blockRow = new QHBoxLayout();
+    blockRow->addWidget(new QLabel("Block Size (Odd):", this));
+    localBlockSpinner = new QSpinBox(this);
+    localBlockSpinner->setRange(3, 99);
+    localBlockSpinner->setSingleStep(2); // Steps by 2 to keep it odd
+    localBlockSpinner->setValue(15);
+    blockRow->addWidget(localBlockSpinner);
+    ltLayout->addLayout(blockRow);
+
+    QHBoxLayout *cRow = new QHBoxLayout();
+    cRow->addWidget(new QLabel("Constant (C):", this));
+    localCSpinner = new QDoubleSpinBox(this);
+    localCSpinner->setRange(-50.0, 50.0);
+    localCSpinner->setValue(5.0);
+    cRow->addWidget(localCSpinner);
+    ltLayout->addLayout(cRow);
+
+    runLocalThresholdBtn = new QPushButton("Run Local Threshold", this);
+    ltLayout->addWidget(runLocalThresholdBtn);
+    sideLayout->addWidget(localThreshBox);
 
     // Interactive K-Means Box
     QGroupBox *kmeansBox = new QGroupBox("K-Means", this);
@@ -90,7 +116,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     kLayout->addWidget(clearSeedsBtn);
     sideLayout->addWidget(kmeansBox);
 
-    // Dedicated Mean Shift Box
+    // Mean Shift Box
     QGroupBox *meanShiftBox = new QGroupBox("Mean Shift Segmentation", this);
     meanShiftBox->setStyleSheet("QGroupBox { border: 1px solid #FFAA00; margin-top: 10px; } QGroupBox::title { subcontrol-origin: margin; left: 10px; color: #FFAA00; }");
     QVBoxLayout *msLayout = new QVBoxLayout(meanShiftBox);
@@ -123,7 +149,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     msLayout->addWidget(runMeanShiftBtn);
     sideLayout->addWidget(meanShiftBox);
 
-    // --- NEW: Dedicated Region Growing Box ---
+    // --- Region Growing Box ---
     QGroupBox *rgBox = new QGroupBox("Region Growing", this);
     rgBox->setStyleSheet("QGroupBox { border: 1px solid #AA00FF; margin-top: 10px; } QGroupBox::title { subcontrol-origin: margin; left: 10px; color: #AA00FF; }");
     QVBoxLayout *rgLayout = new QVBoxLayout(rgBox);
@@ -148,7 +174,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     rgLayout->addWidget(runRegionGrowingBtn);
     sideLayout->addWidget(rgBox);
 
-    // --- NEW: Dedicated Agglomerative Clustering Box ---
+    // --- Agglomerative Clustering Box ---
     QGroupBox *aggloBox = new QGroupBox("Agglomerative Clustering", this);
     aggloBox->setStyleSheet("QGroupBox { border: 1px solid #00FA9A; margin-top: 10px; } QGroupBox::title { subcontrol-origin: margin; left: 10px; color: #00FA9A; }");
     QVBoxLayout *aggloLayout = new QVBoxLayout(aggloBox);
@@ -181,8 +207,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     connect(runKMeansBtn, &QPushButton::clicked, this, &MainWindow::runInteractiveKMeans);
     connect(clearSeedsBtn, &QPushButton::clicked, this, &MainWindow::clearKMeansSeeds);
     connect(runMeanShiftBtn, &QPushButton::clicked, this, &MainWindow::runMeanShift);
-    connect(runRegionGrowingBtn, &QPushButton::clicked, this, &MainWindow::runRegionGrowing); // NEW
-    connect(runAggloBtn, &QPushButton::clicked, this, &MainWindow::runAgglomerative);         // NEW
+    connect(runRegionGrowingBtn, &QPushButton::clicked, this, &MainWindow::runRegionGrowing);
+    connect(runAggloBtn, &QPushButton::clicked, this, &MainWindow::runAgglomerative);       
+    connect(runLocalThresholdBtn, &QPushButton::clicked, this, &MainWindow::runLocalThreshold); 
 
     log("Ready. Load an image, click on colors you want to segment, and hit a Run button!");
 }
@@ -264,6 +291,9 @@ void MainWindow::clearKMeansSeeds() {
 // ---------------------------------------------------------
 // Segmentation Runners
 // ---------------------------------------------------------
+// ---------------------------------------------------------
+// k means clustering
+// ---------------------------------------------------------
 void MainWindow::runInteractiveKMeans() {
     if (currentImage.empty()) { 
         log("Warning: Load an image first!"); 
@@ -285,6 +315,9 @@ void MainWindow::runInteractiveKMeans() {
     displayResult(result);
 }
 
+// ---------------------------------------------------------
+// mean shift clustering
+// ---------------------------------------------------------
 void MainWindow::runMeanShift() {
     if (currentImage.empty()) { 
         log("Warning: Load an image first!"); 
@@ -306,6 +339,9 @@ void MainWindow::runMeanShift() {
     log("Finished Mean Shift Segmentation");
 }
 
+// ---------------------------------------------------------
+// region growing
+// ---------------------------------------------------------
 void MainWindow::runRegionGrowing() {
     if (currentImage.empty()) { 
         log("Warning: Load an image first!"); 
@@ -331,6 +367,9 @@ void MainWindow::runRegionGrowing() {
     log("Finished Region Growing Segmentation");
 }
 
+// ---------------------------------------------------------
+// agglomerative
+// ---------------------------------------------------------
 void MainWindow::runAgglomerative() {
     if (currentImage.empty()) { 
         log("Warning: Load an image first!"); 
@@ -347,6 +386,37 @@ void MainWindow::runAgglomerative() {
     QApplication::restoreOverrideCursor();
     displayResult(processedMat);
     log("Finished Agglomerative Clustering");
+}
+
+
+// ---------------------------------------------------------
+// local threshold
+// ---------------------------------------------------------
+void MainWindow::runLocalThreshold() {
+    if (currentImage.empty()) { 
+        log("Warning: Load an image first!"); 
+        return; 
+    }
+    
+    cv::Mat grayImage;
+    cv::cvtColor(currentImage, grayImage, cv::COLOR_BGR2GRAY);
+
+    int blockSize = localBlockSpinner->value();
+    if (blockSize % 2 == 0) {
+        blockSize++; // Force odd
+        localBlockSpinner->setValue(blockSize); // Update UI
+        log("Note: Block size must be odd. Automatically adjusted to " + QString::number(blockSize));
+    }
+    double cValue = localCSpinner->value();
+
+    log(QString("Running Local Thresholding (Block=%1, C=%2)...").arg(blockSize).arg(cValue));
+    
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    cv::Mat processedMat = Thresholding::applyLocal(grayImage, blockSize, cValue);
+    QApplication::restoreOverrideCursor();
+
+    displayResult(processedMat);
+    log("Finished Local Thresholding");
 }
 
 // ---------------------------------------------------------
@@ -397,9 +467,6 @@ void MainWindow::processThreshold() {
     } 
     else if (selectedAlgorithm == "Optimal Thresholding") {
         processedMat = Thresholding::applyOptimal(grayImage, algorithmLog);
-    }
-    else if (selectedAlgorithm == "Local Thresholding") {
-        processedMat = Thresholding::applyLocal(grayImage);
     }
     else if (selectedAlgorithm == "Spectral Thresholding") {
         processedMat = Thresholding::applySpectral(grayImage);

@@ -24,7 +24,8 @@ protected:
 private slots:
     void openImage();
     void processThreshold();   
-    // void processSegmentation(); 
+    void runLocalThreshold();
+
     void runInteractiveKMeans(); 
     void clearKMeansSeeds();     
     void runMeanShift();
@@ -43,6 +44,11 @@ private:
     // UI Elements - Thresholding
     QComboBox *thresholdSelect;
     QPushButton *applyThresholdBtn;
+
+    // UI Elements - Local Threshold Box
+    QSpinBox *localBlockSpinner;
+    QDoubleSpinBox *localCSpinner;
+    QPushButton *runLocalThresholdBtn;
 
     // UI Elements - Segmentation
     QDoubleSpinBox *spatialBandwidthSpinner;
