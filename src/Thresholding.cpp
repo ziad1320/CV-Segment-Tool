@@ -149,16 +149,50 @@ cv::Mat Thresholding::applyOptimal(const cv::Mat& inputImage, QString& logOutput
 // ==========================================
 // LOCAL THRESHOLDING
 // ==========================================
-cv::Mat Thresholding::applyLocal(const cv::Mat& inputImage) {
-    cv::Mat gray, result;
+cv::Mat Thresholding::applyLocal(const cv::Mat& inputImage, int blockSize, double C) {
+    cv::Mat gray;
     if (inputImage.channels() == 3) cv::cvtColor(inputImage, gray, cv::COLOR_BGR2GRAY);
     else gray = inputImage.clone();
 
-    // Adaptive Thresholding: 
-    // - Uses a 15x15 pixel local window
-    // - Subtracts a constant 'C' of 5 to fine-tune noise
-    cv::adaptiveThreshold(gray, result, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, 15, 5);
+    int rows = gray.rows;
+    int cols = gray.cols;
     
+    cv::Mat result = cv::Mat::zeros(gray.size(), CV_8UC1);
+
+    // Ensure block size is odd
+    if (blockSize % 2 == 0) blockSize++; 
+    int halfBlock = blockSize / 2;
+
+    for (int r = 0; r < rows; ++r) {
+        for (int c = 0; c < cols; ++c) {
+            
+            double localSum = 0.0;
+            int pixelCount = 0;
+
+            for (int dy = -halfBlock; dy <= halfBlock; ++dy) {
+                for (int dx = -halfBlock; dx <= halfBlock; ++dx) {
+                    
+                    int ny = r + dy;
+                    int nx = c + dx;
+
+                    if (ny >= 0 && ny < rows && nx >= 0 && nx < cols) {
+                        localSum += gray.at<uchar>(ny, nx);
+                        pixelCount++;
+                    }
+                }
+            }
+
+            double localMean = localSum / pixelCount;
+            double pixelThreshold = localMean - C;
+
+            if (gray.at<uchar>(r, c) > pixelThreshold) {
+                result.at<uchar>(r, c) = 255; 
+            } else {
+                result.at<uchar>(r, c) = 0;   
+            }
+        }
+    }
+
     return result;
 }
 
